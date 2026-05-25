@@ -4,19 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Recomeço em Movimento</title>
-<meta name="description" content="Seu sistema diário de treino, alimentação e hábitos saudáveis." />
 <meta name="theme-color" content="#10231d" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237cd14e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.5 6.5 17.5 17.5'/%3E%3Cpath d='m21 21-1-1'/%3E%3Cpath d='m3 3 1 1'/%3E%3Cpath d='m18 22 4-4'/%3E%3Cpath d='m2 6 4-4'/%3E%3Cpath d='m3 10 7-7'/%3E%3Cpath d='m14 21 7-7'/%3E%3C/svg%3E" />
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-
 <style>
 :root{
   --forest:#10231d; --forest2:#1c3b32; --panel:#16302a;
@@ -73,30 +69,27 @@ input,textarea,select,button{outline:none;font-family:inherit;}
 .auth-hero{background:var(--grad);position:relative;overflow:hidden;}
 .auth-hero::after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1px);background-size:18px 18px;opacity:.6;}
 .glow{filter:drop-shadow(0 6px 16px rgba(155,232,112,.35));}
+
 </style>
 </head>
 <body>
 <div id="root"></div>
-<noscript>Este app precisa de JavaScript ativado para funcionar.</noscript>
+<noscript>Este app precisa de JavaScript ativado.</noscript>
 <script type="text/babel">
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
 /* ============================================================
-   API
+   LOGIN FIXO + ARMAZENAMENTO NO NAVEGADOR
 ============================================================ */
-const TOKEN_KEY = "recomeco_token";
-const getToken = () => { try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; } };
-const setToken = (t) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch (e) {} };
+const LOGIN_USER = "willian";
+const LOGIN_PASS = "123456";
+const DATA_KEY = "recomeco_dados_willian";
+const SESS_KEY = "recomeco_logado";
 
-async function api(path, { method = "GET", body, token } = {}) {
-  const headers = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = "Bearer " + token;
-  const res = await fetch("/api" + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  let data = {};
-  try { data = await res.json(); } catch (e) {}
-  if (!res.ok) throw new Error(data.error || "Erro inesperado.");
-  return data;
-}
+function loadData() { try { const r = localStorage.getItem(DATA_KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+function saveData(d) { try { localStorage.setItem(DATA_KEY, JSON.stringify(d)); } catch (e) {} }
+function isLogged() { try { return localStorage.getItem(SESS_KEY) === "1"; } catch (e) { return false; } }
+function setLogged(v) { try { v ? localStorage.setItem(SESS_KEY, "1") : localStorage.removeItem(SESS_KEY); } catch (e) {} }
 
 /* ============================================================
    ÍCONES (SVG inline — tema academia / vida saudável)
@@ -231,28 +224,25 @@ function Stars({ value, onChange, n = 10 }) {
 }
 
 /* ============================================================
-   AUTENTICAÇÃO (login / registro)
+   LOGIN (usuário e senha fixos)
 ============================================================ */
 function Auth({ onAuth }) {
-  const [mode, setMode] = useState("login");
   const [username, setU] = useState("");
   const [password, setP] = useState("");
   const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
 
-  async function submit() {
-    setErr(""); setBusy(true);
-    try {
-      const path = mode === "login" ? "/login" : "/register";
-      const r = await api(path, { method: "POST", body: { username, password } });
-      setToken(r.token);
-      onAuth(r.username, r.token);
-    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  function submit() {
+    if (username.trim().toLowerCase() === LOGIN_USER && password === LOGIN_PASS) {
+      setErr("");
+      setLogged(true);
+      onAuth(LOGIN_USER);
+    } else {
+      setErr("Usuário ou senha incorretos.");
+    }
   }
 
   return (
     <div className="min-h-screen grid md:grid-cols-2">
-      {/* lado visual */}
       <div className="auth-hero hidden md:flex flex-col justify-center px-12 text-[var(--cream)] relative">
         <div className="relative z-10 max-w-md">
           <div className="flex items-center gap-3 mb-6">
@@ -268,37 +258,24 @@ function Auth({ onAuth }) {
           </div>
         </div>
       </div>
-      {/* formulário */}
       <div className="bg-app flex items-center justify-center px-6 py-12">
         <Card className="w-full max-w-md p-8 pop">
           <div className="md:hidden flex items-center gap-2 mb-6 justify-center">
             <span className="w-10 h-10 rounded-xl btn-lime flex items-center justify-center"><I.dumbbell width="22" height="22" /></span>
             <span className="display text-xl font-semibold text-[var(--forest)]">Recomeço em Movimento</span>
           </div>
-          <h2 className="display text-2xl font-semibold text-[var(--forest)] mb-1">{mode === "login" ? "Entrar" : "Criar conta"}</h2>
-          <p className="text-sm text-[var(--muted)] mb-6">{mode === "login" ? "Acesse seu progresso." : "Comece seu recomeço agora."}</p>
-
+          <h2 className="display text-2xl font-semibold text-[var(--forest)] mb-1">Entrar</h2>
+          <p className="text-sm text-[var(--muted)] mb-6">Acesse seu progresso.</p>
           <Field label="Usuário">
             <input className="field-input" value={username} autoComplete="username"
-              onChange={e => setU(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder="seu_usuario" />
+              onChange={e => setU(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder="willian" />
           </Field>
           <Field label="Senha">
-            <input className="field-input" type="password" value={password} autoComplete={mode==="login"?"current-password":"new-password"}
-              onChange={e => setP(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder="mínimo 6 caracteres" />
+            <input className="field-input" type="password" value={password} autoComplete="current-password"
+              onChange={e => setP(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder="sua senha" />
           </Field>
-
           {err && <div className="text-sm text-[var(--clay2)] bg-[#ffefe9] border border-[#ffd9cc] rounded-xl px-3 py-2 mb-3">{err}</div>}
-
-          <button onClick={submit} disabled={busy} className="btn-lime w-full py-3 chk disabled:opacity-60">
-            {busy ? "Aguarde..." : (mode === "login" ? "Entrar" : "Criar conta")}
-          </button>
-
-          <p className="text-sm text-[var(--muted)] mt-4 text-center">
-            {mode === "login" ? "Não tem conta?" : "Já tem conta?"}{" "}
-            <button className="font-semibold text-[var(--forest)] underline" onClick={() => { setErr(""); setMode(mode === "login" ? "register" : "login"); }}>
-              {mode === "login" ? "Criar agora" : "Fazer login"}
-            </button>
-          </p>
+          <button onClick={submit} className="btn-lime w-full py-3 chk">Entrar</button>
         </Card>
       </div>
     </div>
@@ -308,39 +285,17 @@ function Auth({ onAuth }) {
 /* ============================================================
    APP PRINCIPAL (logado)
 ============================================================ */
-function Dashboard({ username, token, onLogout }) {
-  const [s, setS] = useState(null);
+function Dashboard({ username, onLogout }) {
+  const [s, setS] = useState(() => normalize(loadData()));
   const [tab, setTab] = useState("inicio");
-  const [saveState, setSaveState] = useState("ok"); // ok | saving | error
-  const saveTimer = useRef(null);
   const firstLoad = useRef(true);
 
-  // carregar dados do servidor
   useEffect(() => {
-    let alive = true;
-    api("/data", { token })
-      .then(r => { if (alive) setS(normalize(r.data)); })
-      .catch(() => { if (alive) { setToken(null); onLogout(); } });
-    return () => { alive = false; };
-  }, [token]);
-
-  // salvar (debounced) sempre que s mudar
-  useEffect(() => {
-    if (!s) return;
     if (firstLoad.current) { firstLoad.current = false; return; }
-    setSaveState("saving");
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      api("/data", { method: "PUT", token, body: { data: s } })
-        .then(() => setSaveState("ok"))
-        .catch(() => setSaveState("error"));
-    }, 600);
-    return () => clearTimeout(saveTimer.current);
+    saveData(s);
   }, [s]);
 
   const update = useCallback((fn) => setS(prev => { const n = JSON.parse(JSON.stringify(prev)); fn(n); return n; }), []);
-
-  if (!s) return (<div className="bg-app min-h-screen flex items-center justify-center text-[var(--muted)]">Carregando seu recomeço...</div>);
 
   const tk = todayKey(), wk = weekKey();
   const day = s.days[tk] || blankDay();
@@ -365,12 +320,6 @@ function Dashboard({ username, token, onLogout }) {
     ["semana", "Revisão", I.calendar], ["metas", "Metas", I.target], ["financeiro", "Finanças", I.wallet], ["compromisso", "Compromisso", I.feather],
   ];
 
-  const SaveBadge = () => (
-    <span className={"text-[11px] px-2 py-0.5 rounded-full " + (saveState==="saving"?"bg-white/15":saveState==="error"?"bg-[var(--clay2)]":"bg-white/10")}>
-      {saveState === "saving" ? "salvando..." : saveState === "error" ? "erro ao salvar" : "salvo ✓"}
-    </span>
-  );
-
   return (
     <div className="bg-app">
       <header className="sticky top-0 z-20 text-[var(--cream)]" style={{ background: "var(--grad)" }}>
@@ -379,7 +328,7 @@ function Dashboard({ username, token, onLogout }) {
             <span className="w-9 h-9 rounded-xl btn-lime flex items-center justify-center"><I.dumbbell width="20" height="20" /></span>
             <div>
               <div className="display text-lg leading-none font-semibold">Recomeço em Movimento</div>
-              <div className="text-[11px] opacity-70 -mt-0.5 flex items-center gap-2">@{username} <SaveBadge /></div>
+              <div className="text-[11px] opacity-70 -mt-0.5">@{username}</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -416,7 +365,7 @@ function Dashboard({ username, token, onLogout }) {
       </main>
 
       <footer className="max-w-6xl mx-auto px-4 pb-10 pt-2 text-xs text-[var(--muted)]">
-        <p className="border-t border-[var(--line)] pt-4">Conteúdo educativo. Não substitui acompanhamento médico, nutricional, físico, psicológico ou financeiro. Resultados variam de pessoa para pessoa. Consulte profissionais antes de mudanças importantes.</p>
+        <p className="border-t border-[var(--line)] pt-4">Conteúdo educativo. Não substitui acompanhamento médico, nutricional, físico, psicológico ou financeiro. Resultados variam de pessoa para pessoa. Seus dados ficam salvos apenas neste navegador.</p>
       </footer>
     </div>
   );
@@ -769,34 +718,13 @@ function Compromisso({ s, update }) {
    RAIZ
 ============================================================ */
 function App() {
-  const [auth, setAuth] = useState(null); // {username, token}
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    const t = getToken();
-    if (!t) { setChecking(false); return; }
-    api("/me", { token: t })
-      .then(r => setAuth({ username: r.username, token: t }))
-      .catch(() => setToken(null))
-      .finally(() => setChecking(false));
-  }, []);
-
-  function logout() { setToken(null); setAuth(null); }
-
-  if (checking) return <div className="bg-app min-h-screen flex items-center justify-center text-[var(--muted)]">Carregando...</div>;
-  if (!auth) return <Auth onAuth={(username, token) => setAuth({ username, token })} />;
-  return <Dashboard username={auth.username} token={auth.token} onLogout={logout} />;
+  const [logged, setLog] = useState(isLogged());
+  if (!logged) return <Auth onAuth={() => setLog(true)} />;
+  return <Dashboard username={LOGIN_USER} onLogout={() => { setLogged(false); setLog(false); }} />;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-</script>
-<script>
-  setTimeout(function () {
-    var root = document.getElementById("root");
-    if (root && root.childElementCount === 0) {
-      root.innerHTML = '<div style="max-width:560px;margin:60px auto;padding:24px;font-family:sans-serif;color:#13241f;background:#fff;border:1px solid #dbe6db;border-radius:16px;line-height:1.5"><h2 style="margin:0 0 8px">Não foi possível carregar o app</h2><p>Recarregue a página ou tente outra rede/navegador. Se persistir, abra o Console (F12) e envie o erro ao suporte.</p></div>';
-    }
-  }, 8000);
+
 </script>
 </body>
 </html>
